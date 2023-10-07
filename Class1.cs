@@ -188,7 +188,7 @@ namespace RebarPlacement
                  *  Смещение можно задавать отдельной переменной в зависимости от параметров стержня, 
                  *  чтобы не усложнять список точек вставки.
                  */
-                List<XYZ> insertionPoints = new List<XYZ>();
+                List<XYZ> possibleInsertionPoints = new List<XYZ>();
                 int placementSwitch = 0;  //переключатель для расположения в шахматном порядке
                 foreach (XYZ zCoord in zCoordinates)
                 {
@@ -196,44 +196,51 @@ namespace RebarPlacement
                     {
                         XYZ xyCoord = xyCoordinates[2 * i + placementSwitch % 2];
                         XYZ insertionPoint = new XYZ(xyCoord.X, xyCoord.Y, zCoord.Z);
-                        insertionPoints.Add(insertionPoint);
+                        possibleInsertionPoints.Add(insertionPoint);
                     }
 
                     placementSwitch++;
                 }
 
-                /*  Создание арматуры в выбранной стене
-                 *  В данной версии отверстия не учитывается, т.к. не хватило времени разобраться с поиском отверстий
+                /*  Оказалось, что искать проще искать пересечение с гранью стены, чем само отверстие.
+                 *  Данный кусок кода должен искать точки размещения шпилек только там, где нет отверстий.
+                 *  Для этого создаём новый список, чтобы транзакцию провести только один раз.
                  */
-                #region Transaction
+                List<XYZ> insertionPoints = new List<XYZ>();
+
+                foreach (XYZ originPoint in possibleInsertionPoints)
+                {
+                    ElementFilter elementFilter = new ElementClassFilter(typeof(Wall));
+
+                    XYZ laserOriginPoint = originPoint - 5 * xVec;
+
+                    ReferenceIntersector referenceIntersector = new ReferenceIntersector(hostWall.Id, FindReferenceTarget.Face, view);
+                    IList<ReferenceWithContext> intersectedReferences = referenceIntersector.Find(originPoint, hostWall.Orientation);
+
+                    if (intersectedReferences.Count != 0)
+                    {
+                        insertionPoints.Add(originPoint);
+                    }
+                }
+
+                /*  Создание арматуры в выбранной стене
+                 */
+                #region Rebar_Creation_Transaction
                 Transaction transaction = new Transaction(doc);
 
                 transaction.Start("Create rebar");
 
-                foreach (XYZ originPoint in insertionPoints)
+                foreach (XYZ insertionPoint in insertionPoints)
                 {
-
-                    Rebar rebar = Rebar.CreateFromRebarShape(doc, rebarShape, rebarBarType, hostWall, originPoint, xVec, yVec);
+                    Rebar rebar = Rebar.CreateFromRebarShape(doc, rebarShape, rebarBarType, hostWall, insertionPoint, xVec, yVec);
 
                     //for testing purposes
                     rebar.SetUnobscuredInView(view, true);
                     rebar.SetSolidInView(view, true);
-
                 }
 
                 transaction.Commit();
                 #endregion
-
-                /*  Данный кусок кода предполагалось использовать для поиска пересечения с отверстиями
-                 *  путём построения луча из точки вставки шпильки, но разобраться с этим не успел.
-                 */
-                //foreach (XYZ originPoint in insertionPoints)
-                //{
-                //    ElementFilter elementFilter = new ElementClassFilter(typeof(Opening));
-
-                //    ReferenceIntersector referenceIntersector = new ReferenceIntersector(elementFilter, FindReferenceTarget.Element, view);
-                //    IList<ReferenceWithContext> intersectedReferences = referenceIntersector.Find(originPoint, hostWall.Orientation);
-                //}
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {

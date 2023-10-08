@@ -51,6 +51,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Class1.cs" />
+    <Compile Include="Models\ElementComparers\XYZComparer.cs" />
+    <Compile Include="Models\ElementSelectionFilters\WallSelectionFilter.cs" />
+    <Compile Include="Models\ElementSelectionFilters\RebarSelectionFilter.cs" />
+    <Compile Include="Models\RebarInsertionPoints.cs" />
+    <Compile Include="Models\RebarSelection.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
